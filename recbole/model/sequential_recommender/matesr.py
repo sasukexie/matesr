@@ -9,7 +9,7 @@ from recbole.model.layers import TransformerEncoder
 
 
 class MultiscaleTemporalEncoding(nn.Module):
-    """多尺度时间编码：捕捉不同时间粒度的行为模式"""
+    """多尺度时间编码，捕捉不同时间粒度的行为模式"""
 
     def __init__(self, hidden_size, time_scales=['short', 'medium', 'long']):
         super(MultiscaleTemporalEncoding, self).__init__()
@@ -72,7 +72,7 @@ class MultiscaleTemporalEncoding(nn.Module):
         return self.layer_norm(temporal_emb)
 
 class ContinuousScaleTemporalEncoding(nn.Module):
-    """连续尺度时间编码：将时间尺度视为连续空间"""
+    """连续尺度时间编码，将时间尺度视为连续空间"""
     # 60s=分钟，30 * 24 * 3600=月
     def __init__(self, hidden_size, num_basis=8, min_scale=60, max_scale=30 * 24 * 3600):
         super(ContinuousScaleTemporalEncoding, self).__init__()
@@ -98,7 +98,7 @@ class ContinuousScaleTemporalEncoding(nn.Module):
         self.layer_norm = nn.LayerNorm(hidden_size)
 
     def _radial_basis_function(self, x, centers):
-        """径向基函数：计算时间间隔与基础尺度的相似度"""
+        """径向基函数，计算时间间隔与基础尺度的相似度"""
         # x: [batch_size, seq_len], centers: [num_basis]
         batch_size, seq_len = x.shape
 
@@ -137,7 +137,7 @@ class ContinuousScaleTemporalEncoding(nn.Module):
         return self.layer_norm(final_output)
 
 class AgentAttentionLayer(nn.Module):
-    """代理注意力层：通过少量代理向量实现高效全局信息交互[4,6]"""
+    """代理注意力层，通过少量代理向量实现高效全局信息交互"""
 
     def __init__(self, hidden_size, num_heads, num_agents=8, dropout_prob=0.1):
         super(AgentAttentionLayer, self).__init__()
@@ -227,7 +227,7 @@ class AgentPointWiseFeedForward(nn.Module):
         self.layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, inputs):
-        # 保持与原始SASRec相同的FFN结构
+        # FFN结构
         outputs = self.conv2(self.relu(self.conv1(inputs.transpose(-1, -2))))
         outputs = outputs.transpose(-1, -2)
         outputs = self.dropout(outputs)
@@ -236,7 +236,7 @@ class AgentPointWiseFeedForward(nn.Module):
 
 
 class AgentTransformerEncoder(nn.Module):
-    """代理Transformer编码器 - 替换原始Transformer编码器"""
+    """代理Transformer编码器"""
 
     def __init__(self, n_layers, n_heads, hidden_size, inner_size,
                  hidden_dropout_prob, attn_dropout_prob, num_agents=8):
@@ -279,7 +279,7 @@ class AgentTransformerEncoder(nn.Module):
 
 
 class TemporalFusion(nn.Module):
-    """增强时序融合：修复维度不匹配问题"""
+    """增强时序融合，修复维度不匹配问题"""
 
     def __init__(self, base_hidden_size, temporal_hidden_size, fusion_type="gate"):
         super(TemporalFusion, self).__init__()
@@ -300,7 +300,7 @@ class TemporalFusion(nn.Module):
                 self.temporal_proj = nn.Identity()
             self.cross_attn = nn.MultiheadAttention(base_hidden_size, num_heads=4, batch_first=True)
 
-        # 投影层：将时间表示投影到基础表示维度
+        # 投影层，将时间表示投影到基础表示维度
         if temporal_hidden_size != base_hidden_size:
             self.output_proj = nn.Linear(temporal_hidden_size, base_hidden_size)
         else:
@@ -347,7 +347,7 @@ class TemporalFusion(nn.Module):
 
 
 class CrossScaleInteraction(nn.Module):
-    """跨尺度交互：修复特征维度不匹配问题"""
+    """跨尺度交互，修复特征维度不匹配问题"""
 
     def __init__(self, hidden_size, num_scales=3):
         super(CrossScaleInteraction, self).__init__()
@@ -361,7 +361,7 @@ class CrossScaleInteraction(nn.Module):
             2: hidden_size // 2  # 长期尺度
         }
 
-        # 统一投影维度：取各尺度维度的最小值或平均值
+        # 统一投影维度，取各尺度维度的最小值或平均值
         self.projected_size = hidden_size // 4  # 统一投影到最小维度
 
         # 为每个尺度创建投影层，统一特征维度
@@ -424,7 +424,7 @@ class CrossScaleInteraction(nn.Module):
 
 
 class MATESR(SequentialRecommender):
-    """基于代理注意力和多尺度时间建模的SASRec改进模型"""
+    """基于代理注意力和多尺度时间建模"""
 
     def __init__(self, config, dataset):
         super(MATESR, self).__init__(config, dataset)
