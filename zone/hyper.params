@@ -1,9 +1,21 @@
-n_heads choice [2,4,8]
-n_layers choice [2,4,8]
-num_agents choice [2,4,8,12,16,32,64,128]
-loss_type choice ['CE']
-fusion_type choice ['gate','cross_attention']
-agent_type choice ['atf','tf']
-temporal_encoder choice ['ms','cs']
-hidden_dropout_prob choice [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8]
-attn_dropout_prob choice [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8]
+# ============================================================
+# 通用默认超参搜索空间 (V0.3, fallback)
+# 当没有数据集专属 hyper.{dataset}.params 时使用此文件
+# 策略: 覆盖合理范围, 移除无效参数n_heads(atf模式)
+# 组合数: 4*5*3*3*2*3*2 = 2,160
+# ============================================================
+
+# Transformer层数: 2~8层全覆盖(V0.1/0.2 经验: 小数据需深, 大数据宜浅)
+n_layers choice [2,4,6,8]
+# Agent数量: 覆盖中低到高
+num_agents choice [4,8,16,32,64]
+# 隐藏层dropout: 去掉极端0.1
+hidden_dropout_prob choice [0.1,0.2,0.3,0.5,0.6,0.7]
+# 注意力dropout
+attn_dropout_prob choice [0.1,0.2,0.3,0.5,0.6,0.7]
+# warmup: 有/无
+warmup_epochs choice [0,5]
+# BPR权重
+bpr_weight choice [0.0,0.1,0.3]
+# 时间编码: 离散三尺度 vs 连续谱, 全覆盖
+temporal_encoder choice ['ms', 'cs']

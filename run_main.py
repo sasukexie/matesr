@@ -67,14 +67,15 @@ def process(parameter_dict, dataset_name_arr):
     # set model
     model_name = parameter_dict['model_name']
     parameter_dict1 = {
-        'n_heads': 2, # 2
+        'n_heads': 2, # 仅 agent_type='tf' 时使用; agent_type='atf' 时 M 个 Agent 提供模式多样性
         'n_layers': 2, # 2
-        'num_agents': 12,
-        'agent_type': 'tf', #
+        'num_agents': 8,
+        'agent_type': 'atf', # atf=DPAA, tf=standard Transformer
         'loss_type': 'CE', # CE,BPR
         'temporal_encoder': 'ms', # ms,cs
         'use_temporal_encoding': True,
-        'fusion_type': 'cross_attention', # 融合类型选择："gate"（门控）或"cross_attention"（交叉注意力）
+        'warmup_epochs': 5,  # 0=禁用
+        # 'bpr_weight': 0.3,  # 仅 ml-100k/movielens 推荐启用，Amazon/Netflix 保持 0
     }
 
     tool.tranfer_dict(parameter_dict, parameter_dict1)
@@ -89,7 +90,7 @@ def process(parameter_dict, dataset_name_arr):
     dropouts = [0.1] #[0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8]
     n_layerses = [2] #[1,2,4,6,8]
     n_headses = [2] #[1,2,4,6,8]
-    num_agentses = [12] #[8,12,16,32]
+    num_agentses = [8] #[8,12,16,32]
     max_lens = [50] #[50,60,100,200]
     for dataset_name in dataset_name_arr:
         for dropout in dropouts:
@@ -124,6 +125,6 @@ if __name__ == '__main__':
     # process_base()
 
     # model & dataset # movielens,RentTheRunway,netflix,lfm1b-tracks
-    dataset_name_arr = ['Amazon_Books','movielens','RentTheRunway','netflix','ml-3m']  # ['lfm1b-tracks','steam','netflix','RentTheRunway','movielens','lfm1b-artists','mind','ml-3m','ml-10m']
+    dataset_name_arr = ['Amazon_Books','RentTheRunway','netflix','ml-3m']  # ['lfm1b-tracks','steam','netflix','RentTheRunway','movielens','lfm1b-artists','mind','ml-3m','ml-10m']
     process(parameter_dict, dataset_name_arr)
 

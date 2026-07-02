@@ -163,7 +163,7 @@ def custom_parameter(model_name, dataset_name, parameter_dict):
 
 if __name__ == '__main__':
     parameter_dict = {
-        'epochs': 30,
+        'epochs': 50,
         'train_batch_size': 1024, # 1024,4096, PS: BERT4Rec,lfm1b-artists 128/32
         'eval_batch_size': 256, # 256,512
         'gpu_id': '0',  # (str) The id of GPU device(s).
@@ -183,6 +183,6 @@ if __name__ == '__main__':
     # GNN:LightGCN, KG:KGAT, SR:SASRec, CL:SGL
     # model_name_arr = ['KGAT','LightGCN','Caser','GRU4Rec','SRGNN','GCSAN','SASRec','BERT4Rec','DuoRec','CL4SRec','DCRec','SGL']
 
-    model_name_arr = ['GRU4Rec','LightSANs','SASRec','SRGNN','CORE','CL4SRec']  # ['BPR','SASRec','BERT4Rec','GCSAN','SRGNN','Caser','CORE','CL4SRec','LightSANs','GRU4Rec']
-    dataset_name_arr = ['movielens','Amazon_Books','RentTheRunway','netflix']  # ['steam','netflix','RentTheRunway','movielens','lfm1b-artists','mind','lfm1b-tracks','ml-10m']
+    model_name_arr = ['TiSASRec','EulerFormer']  # ['TiSASRec','EulerFormer','BPR','SASRec','BERT4Rec','GCSAN','SRGNN','Caser','CORE','CL4SRec','LightSANs','GRU4Rec']
+    dataset_name_arr = ['ml-100k','movielens','Amazon_Books','RentTheRunway','netflix','ml-3m']  # ['steam','netflix','RentTheRunway','movielens','lfm1b-artists','mind','lfm1b-tracks','ml-10m']
     process_base(model_name_arr, dataset_name_arr, parameter_dict)

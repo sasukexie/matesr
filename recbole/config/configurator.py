@@ -95,6 +95,7 @@ class Config(object):
         )
         self._load_internal_config_dict(self.model, self.model_class, self.dataset)
         self.final_config_dict = self._get_final_config_dict()
+        self._first_priority(self.final_config_dict)
         self._set_default_parameters()
         self._init_device()
         self._set_train_neg_sample_args()
@@ -203,6 +204,20 @@ class Config(object):
         external_config_dict.update(self.variable_config_dict)
         external_config_dict.update(self.cmd_config_dict)
         self.external_config_dict = external_config_dict
+
+    def _first_priority(self, config):
+        # 将 config 中的参数覆盖 temp_config 中参数
+        temp_dict = dict()
+        for key, value in config.items():
+            if type(value) is dict:
+                self._first_priority(value)
+            elif key.__contains__('*'):  # 参数里包含*
+                config[key.replace('*', '')] = value
+                temp_dict[key] = config  # 记录key和value，后面删除
+
+        for key, value in temp_dict.items():  # 删除key
+            value.pop(key)
+        return config
 
     def _get_model_and_dataset(self, model, dataset):
         if model is None:
@@ -327,6 +342,11 @@ class Config(object):
         final_config_dict = dict()
         final_config_dict.update(self.internal_config_dict)
         final_config_dict.update(self.external_config_dict)
+
+        if "loss_type" in final_config_dict:
+            if final_config_dict["loss_type"] in ["CE"]:
+                final_config_dict['train_neg_sample_args'] = None # CE 默认为 None
+
         return final_config_dict
 
     def _set_default_parameters(self):
@@ -346,7 +366,6 @@ class Config(object):
             self.final_config_dict["MODEL_INPUT_TYPE"] = self.model_class.input_type
         elif "loss_type" in self.final_config_dict:
             if self.final_config_dict["loss_type"] in ["CE"]:
-                self.final_config_dict['train_neg_sample_args'] = None # CE 默认为 None
                 if (
                     self.final_config_dict["MODEL_TYPE"] == ModelType.SEQUENTIAL
                     and self.final_config_dict.get("train_neg_sample_args", None)

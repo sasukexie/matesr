@@ -17,6 +17,7 @@ recbole.trainer.trainer
 ################################
 """
 
+import math
 import os
 
 from logging import getLogger
@@ -142,6 +143,17 @@ class Trainer(AbstractTrainer):
         self.best_valid_result = None
         self.train_loss_dict = dict()
         self.optimizer = self._build_optimizer()
+        # 学习率调度器：warmup + cosine decay（epoch 级别）
+        self.scheduler = None
+        warmup_epochs = config.get("warmup_epochs", 0)
+        if warmup_epochs > 0:
+            total_epochs = config["epochs"]
+            def lr_lambda(epoch):
+                if epoch < warmup_epochs:
+                    return float(epoch) / float(max(1, warmup_epochs))
+                progress = float(epoch - warmup_epochs) / float(max(1, total_epochs - warmup_epochs))
+                return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
         self.eval_type = config["eval_type"]
         self.eval_collector = Collector(config)
         self.evaluator = Evaluator(config)
@@ -172,15 +184,18 @@ class Trainer(AbstractTrainer):
         if seq_len > 1:
             time_deltas[:, 1:] = timestamps[:, 1:] - timestamps[:, :-1]
 
-        # 第一个位置的时间间隔设为0
+        # 第一个位置的时间间隔设为0（无前驱）
         time_deltas[:, 0] = 0
 
-        # 使用物品序列的掩码来标识填充位置（假设填充值为0）
+        # 用 item_seq_len 精确限定有效区域，避免 padding 边界虚假 delta
         if item_seq is not None:
-            # 创建掩码：物品序列中非零的位置为1，零位置为0（填充位置）
-            mask = (item_seq != 0).float()
-            # 将填充部分的时间间隔设为0
-            time_deltas = time_deltas * mask
+            if 'item_id_list_len' in interaction:
+                seq_len_tensor = interaction['item_id_list_len']
+                pos = torch.arange(seq_len, device=timestamps.device).unsqueeze(0)
+                valid_mask = (pos < seq_len_tensor.unsqueeze(1)).float()
+            else:
+                valid_mask = (item_seq != 0).float()
+            time_deltas = time_deltas * valid_mask
 
         interaction['time_deltas'] = time_deltas
 
@@ -355,6 +370,7 @@ class Trainer(AbstractTrainer):
             "state_dict": self.model.state_dict(),
             "other_parameter": self.model.other_parameter(),
             "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict() if self.scheduler else None,
         }
         torch.save(state, saved_model_file, pickle_protocol=4)
         if verbose:
@@ -387,6 +403,8 @@ class Trainer(AbstractTrainer):
 
         # load optimizer state from checkpoint only when optimizer type is not changed
         self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if self.scheduler and checkpoint.get("scheduler"):
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
         message_output = "Checkpoint loaded. Resume training from epoch {}".format(
             self.start_epoch
         )
@@ -504,6 +522,10 @@ class Trainer(AbstractTrainer):
                 {"epoch": epoch_idx, "train_loss": train_loss, "train_step": epoch_idx},
                 head="train",
             )
+
+            # step lr scheduler（epoch 级别 warmup + cosine decay）
+            if self.scheduler is not None:
+                self.scheduler.step()
 
             # eval
             if self.eval_step <= 0 or not valid_data:

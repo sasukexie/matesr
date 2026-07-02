@@ -14,9 +14,6 @@ from recbole.utils import get_local_time
 
 from recbole.trainer import HyperTuning
 from recbole.quick_start import objective_function
-import ray
-from ray import tune
-from ray.tune.schedulers import ASHAScheduler
 import math
 
 # 超参数自动调优：Hyperopt 单机调优，Ray Tune 分布式调优
@@ -25,14 +22,14 @@ def hyperopt_tune(args):
     # in other case, max_evals needs to be set manually
     config_file_list = (args.config_files.strip().split(" ") if args.config_files else None)
     hp = HyperTuning(
-        args,
-        objective_function,
-        algo="exhaustive",
-        early_stop=10,
-        max_evals=100,
-        params_file=args.params_file,
-        fixed_config_file_list=config_file_list,
-        display_file=args.display_file,
+        args,                    # 命令行参数
+        objective_function,      # 目标函数
+        algo="exhaustive",       # 使用穷举搜索算法
+        early_stop=10,           # 连续10次无改进则停止
+        max_evals=200,           # 最多评估200组参数
+        params_file=args.params_file,  # 从文件读取超参数空间
+        fixed_config_file_list=config_file_list,  # 固定配置文件
+        display_file=args.display_file,  # 可视化输出文件
     )
     hp.run()
     hp.export_result(output_file=args.output_file)
@@ -42,6 +39,9 @@ def hyperopt_tune(args):
 
 
 def ray_tune(args):
+    import ray
+    from ray import tune
+    from ray.tune.schedulers import ASHAScheduler
     config_file_list = (
         args.config_files.strip().split(" ") if args.config_files else None
     )
@@ -58,7 +58,10 @@ def ray_tune(args):
     config = {}
     with open(params_file, "r") as fp:
         for line in fp:
-            para_list = line.strip().split(" ")
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            para_list = line.split(" ")
             if len(para_list) < 3:
                 continue
             para_name, para_type, para_value = (
@@ -108,15 +111,24 @@ def process(model_name, dataset_name, time_str):
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default=model_name, help="name of models")
     parser.add_argument("--dataset", type=str, default=dataset_name, help="name of datasets")
-    parser.add_argument("--config_files", type=str, default='zone/common.yaml zone/hyper.yaml',
-                        help="fixed config files")
-    parser.add_argument("--params_file", type=str, default='zone/hyper.params', help="parameters file")
+    parser.add_argument("--config_files", type=str, default='zone/common.yaml zone/hyper.yaml', help="fixed config files")
+    parser.add_argument("--params_file", type=str, default=None, help="parameters file (auto-detect per dataset)")
     parser.add_argument("--output_file", type=str, default=f"log/{model_name}/R_{dataset_name}_{time_str}.result",
                         help="output file")
     parser.add_argument("--display_file", type=str, default=f"log/{model_name}/V_{dataset_name}_{time_str}.result",
                         help="visualization file")
     parser.add_argument("--tool", type=str, default="Hyperopt", help="tuning tool")
     args, _ = parser.parse_known_args()
+
+    # 按数据集选择专属参数文件，不存在则回退到通用文件
+    if args.params_file is None:
+        dataset_params = f"zone/hyper.{dataset_name}.params"
+        fallback_params = "zone/hyper.params"
+        if os.path.exists(dataset_params):
+            args.params_file = dataset_params
+        else:
+            args.params_file = fallback_params
+            print(f"[WARN] {dataset_params} not found, using {fallback_params}")
 
     if args.tool == "Hyperopt":
         hyperopt_tune(args)
@@ -127,7 +139,7 @@ def process(model_name, dataset_name, time_str):
 
 if __name__ == "__main__":
     model_name = 'MATESR'
-    dataset_name_arr = ['movielens','RentTheRunway','netflix','Amazon_Books']
+    dataset_name_arr = ['ml-100k','Amazon_Books','movielens','RentTheRunway','netflix','ml-1m'] # ['steam','netflix','RentTheRunway','movielens','lfm1b-artists','ml-10m','mind','lfm1b-tracks']
     for dataset_name in dataset_name_arr:
         time_str = get_local_time()
         process(model_name, dataset_name, time_str)

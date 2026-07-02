@@ -4,3 +4,6 @@ layers: [64]                    # (list of int) The hidden size in GNN layers.
 mess_dropout: 0.1               # (float) The message dropout rate in GNN layer.
 reg_weight: 1e-5                # (float) The L2 regularization weight.
 aggregator_type: 'bi'           # (str) The aggregator type used in GNN. Range in ['gcn', 'graphsage', 'bi'].
+
+train_batch_size*: 2048
+eval_batch_size*: 4096

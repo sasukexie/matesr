@@ -1,5 +1,5 @@
 n_layers: 2                     # (int) The number of transformer layers in transformer encoder.
-n_heads: 2                      # (int) The number of attention heads for multi-head attention layer.
+n_heads: 2                      # (int) Attention heads. Only used when agent_type='tf' (standard Transformer fallback). DPAA (agent_type='atf') does not use multi-head; M agents provide pattern diversity.
 hidden_size: 64                 # 必须是4的倍数 # (int) The number of features in the hidden state.
 inner_size: 256                 # (int) The inner hidden size in feed-forward layer.
 hidden_dropout_prob: 0.5        # (float) The probability of an element to be zeroed.
@@ -9,10 +9,18 @@ layer_norm_eps: 1e-12           # (float) A value added to the denominator for n
 initializer_range: 0.02         # (float) The standard deviation for normal initialization.
 loss_type: 'CE'                 # (str) The type of loss function. Range in ['BPR', 'CE'].
 
-num_agents: 12  # 8-16 根据序列长度调整
+num_agents: 8  # 8-16 根据序列长度调整
 use_temporal_encoding: True  # 启用多尺度时间编码
 agent_type: 'tf'  # atf,tf
-time_scales: ['short', 'medium', 'long']
-scale_ratios: [0.25, 0.25, 0.5]  # 各尺度维度分配
-fusion_type: 'gate' # 融合类型选择："gate"（门控）或"cross_attention"（交叉注意力）
+# 时间尺度消融配置 —
+#   3-scale (default): ['short', 'medium', 'long']  → dims: h/4 + h/4 + h/2
+#   2-scale:           ['short', 'medium']            → dims: h/2 + h/2
+#   1-scale:           ['medium']                     → dims: h
+time_scales: ['short', 'medium', 'long']  # 多尺度时间编码的尺度列表
 temporal_encoder: 'ms' # ms(MultiScaleTemporalEncoding),cs(ContinuousScaleTemporalEncoding)
+
+# 学习率调度（epoch 级别 warmup + cosine decay）
+warmup_epochs: 5  # 0 表示禁用；推荐值 5
+
+# BPR 正则化（仅在 loss_type='CE' 时生效）
+bpr_weight: 0.2  # 0 表示禁用；推荐值 0.1~0.5

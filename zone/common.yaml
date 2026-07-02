@@ -1,7 +1,7 @@
 #* general
 gpu_id: '0'
 use_gpu: True
-seed: 2021
+seed: 2021                      # 2021、1024、512
 state: INFO
 reproducibility: True
 checkpoint_dir: 'saved/dataset'
@@ -9,7 +9,7 @@ show_progress: True
 save_dataloaders: True
 log_root: "./log/"
 worker: 0                       # (int) The number of workers processing the data.
-save_dataset: True             # (bool) Whether or not to save filtered dataset.
+save_dataset: True              # (bool) Whether or not to save filtered dataset.
 dataset_save_path: ~            # (str) The path of saved dataset.
 dataloaders_save_path: ~        # (str) The path of saved dataloaders.
 log_wandb: False                # (bool) Whether or not to use Weights & Biases(W&B).

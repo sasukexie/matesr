@@ -16,6 +16,7 @@ import sys
 import torch.distributed as dist
 from collections.abc import MutableMapping
 from logging import getLogger
+from datetime import datetime
 import os
 from ray import tune
 import common.tool as tool
@@ -188,6 +189,7 @@ def run_recboles(rank, *args):
     )
 
 
+RUNNING_FLAG = None
 def objective_function(config_dict=None, config_file_list=None, saved=True):
     r"""The default objective_function used in HyperTuning
 
@@ -196,34 +198,56 @@ def objective_function(config_dict=None, config_file_list=None, saved=True):
         config_file_list (list, optional): Config files used to modify experiment parameters. Defaults to ``None``.
         saved (bool, optional): Whether to save the model. Defaults to ``True``.
     """
+    model_name, best_valid_score, best_valid_result, test_result = "", 0.0000, {}, {}
+    try:
+        config = Config(config_dict=config_dict, config_file_list=config_file_list)
+        init_seed(config["seed"], config["reproducibility"])
+        logger = getLogger()
+        for hdlr in logger.handlers[:]:  # remove all old handlers
+            logger.removeHandler(hdlr)
+        init_logger(config)
+        logging.basicConfig(level=logging.ERROR)
 
-    config = Config(config_dict=config_dict, config_file_list=config_file_list)
-    init_seed(config["seed"], config["reproducibility"])
-    logger = getLogger()
-    for hdlr in logger.handlers[:]:  # remove all old handlers
-        logger.removeHandler(hdlr)
-    init_logger(config)
-    logging.basicConfig(level=logging.ERROR)
-    dataset = create_dataset(config)
-    train_data, valid_data, test_data = data_preparation(config, dataset)
-    init_seed(config["seed"], config["reproducibility"])
-    model_name = config["model"]
-    model = get_model(model_name)(config, train_data._dataset).to(config["device"])
-    # tool.startCommonSet(config=config)
-    trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
-    best_valid_score, best_valid_result = trainer.fit(
-        train_data, valid_data, verbose=False, saved=saved
-    )
-    test_result = trainer.evaluate(test_data, load_best_model=saved)
+        # tools
+        global RUNNING_FLAG
+        RUNNING_FLAG = f'RF{datetime.now().strftime("%Y%m%d%H%M%S")}' if RUNNING_FLAG == None else RUNNING_FLAG
+        config['running_flag'] = RUNNING_FLAG
+        log_dir = os.path.dirname(logger.handlers[1].baseFilename)
+        config['log_dir'] = log_dir
+        if 'checkpoint_dir_t' not in config:
+            config['checkpoint_dir_t'] = config['checkpoint_dir']
+        config['checkpoint_dir'] = f'{config['checkpoint_dir_t']}/{config["train_batch_size"]}_{config["eval_batch_size"]}_{config["idx"]}'
 
-    tune.report(**test_result)
-    return {
-        "model": model_name,
-        "best_valid_score": best_valid_score,
-        "valid_score_bigger": config["valid_metric_bigger"],
-        "best_valid_result": best_valid_result,
-        "test_result": test_result,
-    }
+
+        dataset = create_dataset(config)
+        train_data, valid_data, test_data = data_preparation(config, dataset)
+        init_seed(config["seed"], config["reproducibility"])
+        model_name = config["model"]
+        model = get_model(model_name)(config, train_data._dataset).to(config["device"])
+        # tool.startCommonSet(config=config)
+        trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
+        best_valid_score, best_valid_result = trainer.fit(train_data, valid_data, verbose=True, saved=saved)
+        test_result = trainer.evaluate(test_data, load_best_model=saved)
+        # tools
+        tool.log_result(logger, set_color, log_dir, config, test_result)
+
+        tune.report(**test_result)
+        return {
+            "model": model_name,
+            "best_valid_score": best_valid_score,
+            "valid_score_bigger": config["valid_metric_bigger"],
+            "best_valid_result": best_valid_result,
+            "test_result": test_result,
+        }
+    except:
+        print("objective_function 报错了！！！")
+        return {
+            "model": model_name,
+            "best_valid_score": best_valid_score,
+            "valid_score_bigger": True,
+            "best_valid_result": best_valid_result,
+            "test_result": test_result,
+        }
 
 
 def load_data_and_model(model_file):

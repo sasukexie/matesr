@@ -233,7 +233,10 @@ class HyperTuning(object):
         space = {}
         with open(file, "r", encoding='utf-8') as fp:
             for line in fp:
-                para_list = line.strip().split(" ")
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                para_list = line.split(" ")
                 if len(para_list) < 3:
                     continue
                 para_name, para_type, para_value = (
